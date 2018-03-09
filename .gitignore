@@ -106,6 +106,6 @@ venv.bak/
 
 
 # gecko stuff
-*geckodrive.log
+*/geckodrive.log
 
 *test*
