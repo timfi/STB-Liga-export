@@ -1,0 +1,44 @@
+{
+    "0": {
+        "Platz": "Platz:  1",
+        "Mannschaft": "Mannschaft:  1:  TSV Waldenbuch",
+        "Tabellenpunkte  TP": "Tabellenpunkte  TP  :  4",
+        "Geru00e4tepunkte  GP": "Geru00e4tepunkte  GP  :  26",
+        "Wettku00e4mpfe  WK": "Wettku00e4mpfe  WK  :  3"
+    },
+    "1": {
+        "Platz\r\n": "Platz:  2",
+        "Mannschaft": "Mannschaft:  2:  TSV Lustnau I",
+        "Tabellenpunkte  TP": "Tabellenpunkte  TP  :  4",
+        "Geru00e4tep\r\nunkte  GP": "Geru00e4tepunkte  GP  :  22",
+        "Wettku00e4mpfe  WK": "Wettku00e4mpfe  WK  :  2"
+    },
+    "2": {
+        "Platz": "Platz:  3",
+        "Mannschaft": "Mannschaft:  3:  SV Bu00f6blingen",
+        "Tabellenpunkte  TP": "Tabellenpunkte  TP  :  2",
+        "Geru00e4tepunkte  GP": "Geru00e4tepunkte  GP  :  10",
+        "Wettku00e4mpfe  WK": "Wettku00e4mpfe  WK  :  2"
+    },
+    "3": {
+        "Platz": "Platz:  4",
+        "Mannschaft\r\n": "Mannschaft:  4:  TSV Urach 1847",
+        "Tabellenpunkte  TP": "Tabellenpunkte  TP  :  2",
+        "Geru00e4tepunkte  GP": "Geru00e4tepu\r\nnkte  GP  :  8",
+        "Wettku00e4mpfe  WK": "Wettku00e4mpfe  WK  :  2"
+    },
+    "4": {
+        "Platz": "Platz:  5",
+        "Mannschaft": "Mannschaft:\r\n 5:  TB Neckarhausen",
+        "Tabellenpunkte  TP": "Tabellenpunkte  TP  :  0",
+        "Geru00e4tepunkte  GP": "Geru00e4tepunkte  GP  :  6",
+        "Wettku00e4mpfe  WK": "Wettku00e4mpfe  WK  :  1"
+    },
+    "5": {
+        "Platz": "Platz:  6",
+        "Mannschaft": "Mannschaft:  6:  WKG Bonland\r\nen-Sielmingen",
+        "Tabellenpunkte  TP": "Tabellenpunkte  TP  :  0",
+        "Geru00e4tepunkte  GP": "Geru00e4tepunkte  GP  :  0",
+        "Wett\r\nku00e4mpfe  WK": "Wettku00e4mpfe  WK  :  2"
+    }
+}
