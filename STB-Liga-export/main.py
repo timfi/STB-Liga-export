@@ -38,5 +38,5 @@ def write_html_to_file(url, path):
 soup = extract_soup(listen_url)
 for table in soup.find_all('table'):
     df = pd.read_html(table.prettify(), header=0)
-    print(json.dumps(df[0].to_json(orient='index')))
+    print(json.dumps(df[0].to_json(orient='index'), indent=4, sort_keys=True))
     #print(table)
