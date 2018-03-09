@@ -6,10 +6,13 @@ from bs4 import BeautifulSoup
 from time import sleep
 import pandas as pd
 import json
-import html5lib
+import codecs
+import lxml
+from collections import namedtuple
 
-table_url = 'https://kutu.stb-liga.de/njs/#/?view=Tabellen'
-listen_url = 'https://kutu.stb-liga.de/njs/#/?view=Mannschaft&filter=68'
+Team = namedtuple('Team', ['id', 'name'])
+Liga = namedtuple('Liga', ['name', 'teams'])
+Begegnung = namedtuple('Begegnung', ['id', 'host', 'guest'])
 
 @contextmanager
 def start_browser(*, maximize=False, hide=False):
@@ -33,10 +36,19 @@ def write_html_to_file(url, path):
     with open(path, encoding='utf-8', mode='w+') as f:
         f.write(extract_soup(url, hide=True).prettify())
 
-# write_html_to_file(table_url, 'test')
 
-soup = extract_soup(listen_url)
-for table in soup.find_all('table'):
-    df = pd.read_html(table.prettify(), header=0)
-    print(json.dumps(df[0].to_json(orient='index'), indent=4, sort_keys=True))
-    #print(table)
+table_url = 'https://kutu.stb-liga.de/njs/#/?view=Tabellen'
+listen_url = 'https://kutu.stb-liga.de/njs/#/?view=Mannschaft&filter=68'
+
+if __name__ == '__main__':
+    # soup = extract_soup(listen_url)
+    with codecs.open('test.html', 'r', 'utf-8') as f:
+        soup = BeautifulSoup(f)
+        excel_writer = pd.ExcelWriter('test.xlsx')
+        for i, table in enumerate(soup.find_all('table')):
+            df = pd.read_html(table.prettify(), header=0)[0]
+            print(df)
+            df.to_excel(excel_writer, 'Sheet ' + str(i))
+        else:
+            print("done")
+            excel_writer.save()
