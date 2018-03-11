@@ -7,11 +7,15 @@ from bs4 import BeautifulSoup
 from time import sleep
 import pandas as pd
 import lxml
+import inspect
+import os
+import platform
 
 __all__ = [
     'write_html_to_file',
     'get_ranking_data',
     'get_team_data',
+    'create_webdriver'
 ]
 
 urls = {
@@ -43,37 +47,69 @@ class page_has_loaded(object):
 def start_webdriver(*, maximize=False, hide=False):
     '''A contextmanager for the selenium webdriver
 
+    <kwargs>
     hide - boolean the hide the webdriver
     maximize - boolean the maximize the webdriver
+    [hide and maximize are exclusive to one another]
     '''
-    selbrowser = webdriver.Firefox()
-    if maximize:
-        selbrowser.maximize_window()
-    elif hide:
-        selbrowser.set_window_position(-30000, 0)
-    yield selbrowser
-    selbrowser.quit()
+    driver = create_webdriver(maximize=maximize, hide=hide)
+    yield driver
+    driver.quit()
 
-def extract_soup(url, *, wait_timer=60, hide=True, maximize=False):
+def create_webdriver(*, maximize=False, hide=False):
+    '''A method to create a selenium webdriver
+
+    <kwargs>
+    hide - boolean the hide the webdriver
+    maximize - boolean the maximize the webdriver
+    [hide and maximize are exclusive to one another]
+    '''
+    driver = webdriver.Firefox()
+    if maximize:
+        driver.maximize_window()
+    elif hide:
+        driver.set_window_position(-30000, 0)
+    return driver
+
+
+def extract_soup(url, *, wait_timer=5, hide=True, maximize=False, driver=None):
     '''A method to extract the html of a page, that waits for the js to load the data before extracting.
 
+    <args>
     url - the url to get the data from
+
+    <kwargs>
     wait_timer - how long the driver should wait for at maximum
     hide - boolean the hide the browser
     maximize - boolean the maximize the browser
+    [hide and maximize are exclusive to one another]
+    driver - webdriver to use
     '''
-    with start_webdriver(hide=hide, maximize=maximize) as seldriver:
-        seldriver.get(url)
-        try:
-            WebDriverWait(seldriver, wait_timer).until(page_has_loaded())
-        except:
-            raise Exception('Couldn\'t load page')
-        return retrieve_html(seldriver)
+    if not driver:
+        print("using local driver")
+        with start_webdriver(hide=hide, maximize=maximize) as local_driver:
+            if local_driver.current_url != url:
+                local_driver.get(url)
+                # try:
+                #     WebDriverWait(seldriver, wait_timer).until(page_has_loaded())
+                # except:
+                #     raise Exception('Couldn\'t load page')
+                sleep(wait_timer)
+            return retrieve_html(local_driver)
+    else:
+        print("using foreign driver")
+        if driver.current_url != url:
+            driver.get(url)
+            sleep(wait_timer)
+        return retrieve_html(driver)
 
 def write_html_to_file(path, *, url=None, soup=None):
     '''A method to write the html of a soup or an url to a given file path
 
+    <args>
     path - the path to write to
+
+    <kwargs>
     url - source url
     soup - source soup
     [url and soup are exclusive to one another]
@@ -90,6 +126,7 @@ def write_html_to_file(path, *, url=None, soup=None):
 def retrieve_html(driver):
     '''A method to retrieve the html from a running webdriver.
 
+    <args>
     driver - driver to extract html from
     '''
     return BeautifulSoup(driver.execute_script("return document.getElementsByTagName('html')[0].innerHTML"), 'html.parser')
@@ -97,23 +134,28 @@ def retrieve_html(driver):
 def get_dfs_from_soup(soup):
     '''A method to transform all the tables in a given soup into pandas dataframes.
 
+    <args>
     soup - soup to transform
     '''
     return [pd.read_html(table.prettify(), flavor='html5lib')[0] for table in soup.find_all('table')]
 
-def get_soup_from_args(key, path, *, uid=None):
+def get_soup_from_args(key, path, *, uid=None, driver=None):
     '''A method to get the soup from a given html file / predefined url.
 
+    <args>
     key - key for url in urls dict
     path - path to html file
     [key and path are exclusive to one another]
+
+    <kwargs>
     uid - url identifier (only use when specifically needed)
+    driver - webdriver to use
     '''
     if not path:
         if uid:
-            soup = extract_soup(urls[key] + str(uid))
+            soup = extract_soup(urls[key] + str(uid), driver=driver)
         else:
-            soup = extract_soup(urls[key])
+            soup = extract_soup(urls[key], driver=driver)
     else:
         with open(path, encoding='utf-8', mode='r') as f:
             soup = BeautifulSoup(f, 'html.parser')
@@ -122,6 +164,7 @@ def get_soup_from_args(key, path, *, uid=None):
 def cleanup_team_data(team_data):
     '''A method to clean up the given team data.
 
+    <args>
     team_data - data to clean
     '''
     team_data[0] = team_data[0].iloc[:,:9]
@@ -130,37 +173,42 @@ def cleanup_team_data(team_data):
     team_data[1].columns = ['Platz', 'Mannschaft', 'Tabellenpunkte', 'Gerätepunkte', 'Wettkämpfe']
     return team_data
 
-def get_team_data(team_id=68, *, path=None, cleanup_func=cleanup_team_data):
+def get_team_data(team_id=68, *, path=None, cleanup_func=cleanup_team_data, driver=None):
     '''A method to get the given team data.
 
-    team_id - id of the team
+    <kwargs>
+    team_id - id of the team (can be given as positional argument)
     path - html file path to query from [if not given the default url is queried]
     cleanup_func - function to clean up data
+    driver - webdriver to use
     '''
-    soup = get_soup_from_args('Mannschaft', path, uid=team_id)
+    soup = get_soup_from_args('Mannschaft', path, uid=team_id, driver=driver)
     dfs = get_dfs_from_soup(soup)
     return cleanup_func(dfs)
 
 def cleanup_ranking_data(ranking_data):
     '''A method to clean up the given ranking data.
 
+    <args>
     ranking_data - data to clean
     '''
     # TODO cleanup_func for ranking data
     return ranking_data
 
-def get_ranking_data(*, path=None, cleanup_func=cleanup_ranking_data):
+def get_ranking_data(*, path=None, cleanup_func=cleanup_ranking_data, driver=None):
     '''A method to get the given ranking data.
 
+    <kwargs>
     path - html file path to query from [if not given the default url is queried]
     cleanup_func - function to clean up data
+    driver - webdriver to use
     '''
-    soup = get_soup_from_args('Tabellen', path)
+    soup = get_soup_from_args('Tabellen', path, driver=driver)
     dfs = get_dfs_from_soup(soup)
     return cleanup_func(dfs)
 
 
 if __name__ == '__main__':
     for i, df in enumerate(get_ranking_data()):
-        print(f'Table #{i} ------------------------')
-        print(df)
+       print(f'Table #{i} ------------------------')
+       print(df)
