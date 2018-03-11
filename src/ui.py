@@ -45,6 +45,9 @@ class STB_App(tk.Tk):
         self.driver.quit()
         self.destroy()
 
-if __name__ == '__main__':
+def main():
     app = STB_App()
     app.mainloop()
+
+if __name__ == '__main__':
+    main()

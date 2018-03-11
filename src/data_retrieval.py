@@ -206,9 +206,3 @@ def get_ranking_data(*, path=None, cleanup_func=cleanup_ranking_data, driver=Non
     soup = get_soup_from_args('Tabellen', path, driver=driver)
     dfs = get_dfs_from_soup(soup)
     return cleanup_func(dfs)
-
-
-if __name__ == '__main__':
-    for i, df in enumerate(get_ranking_data()):
-       print(f'Table #{i} ------------------------')
-       print(df)
