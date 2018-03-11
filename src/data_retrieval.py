@@ -15,7 +15,8 @@ __all__ = [
     'write_html_to_file',
     'get_ranking_data',
     'get_team_data',
-    'create_webdriver'
+    'get_encounter_data',
+    'create_webdriver',
 ]
 
 urls = {

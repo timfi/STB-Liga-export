@@ -4,6 +4,7 @@ from contextlib import contextmanager
 
 __all__ = [
     'excel_writer',
+    'write_data_to_csv',
 ]
 
 @contextmanager
@@ -13,3 +14,9 @@ def excel_writer(path):
     writer = pd.ExcelWriter(path)
     yield writer
     writer.save()
+
+def write_data_to_csv(dfs=[], path='test.csv'):
+    '''A method to write a list of pandas dataframes to a csv file'''
+    with open(path, encoding='utf-8', mode='w') as f:
+        for df in dfs:
+            df.to_csv(f)
