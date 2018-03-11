@@ -16,6 +16,8 @@ class StartPage(tk.Frame):
         button1.pack()
         button2 = ttk.Button(self, text='Print ranking_data to console', command=lambda: print(dr.get_ranking_data(driver=controller.driver)))
         button2.pack()
+        button3 = ttk.Button(self, text='Print encounter_data to console', command=lambda: print(dr.get_encounter_data(driver=controller.driver)))
+        button3.pack()
 
 class STB_App(tk.Tk):
     FRAMES = (
