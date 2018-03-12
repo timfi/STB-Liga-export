@@ -10,6 +10,8 @@ __all__ = [
     'get_ranking_data',
     'get_team_data',
     'get_encounter_data',
+    'MAPPINGS',
+    'URLS',
 ]
 
 @unique
@@ -93,3 +95,8 @@ def get_encounter_data(encounter_id=1949, *, path=None, cleanup_func=cleanup_enc
     str_table= r'<table>'+ str(rows) + r'</table>'   #Make string which pandas can read
     df = pd.read_html(str_table)[0]
     return cleanup_func(df)
+
+class MAPPINGS(Enum):
+    TEAM = get_team_data
+    RANKING = get_ranking_data
+    ENCOUNTER = get_encounter_data

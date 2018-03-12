@@ -9,6 +9,7 @@ setup(
     author='U2328 and iconstrife',
     package_dir={
         'STB-Liga-export': 'src',
+        'STB-Liga-export.data': 'src/data',
     },
     packages=['STB-Liga-export'],
     entry_points={

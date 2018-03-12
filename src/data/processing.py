@@ -30,8 +30,12 @@ def cleanup_ranking_data(ranking_data):
     <args>
     ranking_data - data to clean
     '''
-    # TODO cleanup_func for ranking data
-    return ranking_data
+    def clean(df):
+        df = df.applymap(lambda x: x.split(':')[-1])
+        df.columns = ['Platz', 'Mannschaft', 'Tabellenpunkte', 'Gerätepunkte', 'Wettkämpfe']
+        return df
+    cleaned_ranking_data = list(map(clean, ranking_data))
+    return cleaned_ranking_data
 
 def cleanup_encounter_data(encounter_data):
     '''A method to clean up the given ranking data.

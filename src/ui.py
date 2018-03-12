@@ -7,24 +7,56 @@ import logging
 import sys
 import os
 
-logger = logging.Logger(__name__)
-
 LARGE_FONT = (
     'Verdana',
     12
 )
 
-class StartPage(tk.Frame):
+SMALL_FONT = (
+    'Verdana',
+    9
+)
+
+class AcquisitionTab(ttk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
-        label = ttk.Label(self, text='Hello World', font=LARGE_FONT)
-        label.pack(pady=10, padx=10)
-        button1 = ttk.Button(self, text='Print team_data to console', command=lambda: print(acquisition.get_team_data(driver=controller.driver)))
+        self.logger = logging.getLogger('AcquisitionTab')
+
+        button1 = ttk.Button(self, text='Print team_data to viewing tab',
+                             command=lambda: self.__get_data(acquisition.MAPPINGS.TEAM, controller))
         button1.pack()
-        button2 = ttk.Button(self, text='Print ranking_data to console', command=lambda: print(acquisition.get_ranking_data(driver=controller.driver)))
+        button2 = ttk.Button(self, text='Print ranking_data to viewing tab',
+                             command=lambda: self.__get_data(acquisition.MAPPINGS.RANKING, controller))
         button2.pack()
-        button3 = ttk.Button(self, text='Print encounter_data to console', command=lambda: print(acquisition.get_encounter_data(driver=controller.driver)))
+        button3 = ttk.Button(self, text='Print encounter_data to viewing tab',
+                             command=lambda: self.__get_data(acquisition.MAPPINGS.ENCOUNTER, controller))
         button3.pack()
+
+    def __get_data(self, data_type, controller):
+        self.logger.debug(f'Getting {str(data_type.__qualname__)}')
+        controller.aquired_data[data_type.__qualname__] = data_type()
+        print(controller.aquired_data)
+
+class DataDisplayTab(ttk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+
+class StartPage(ttk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self.logger = logging.getLogger('StartPage')
+
+        main_label = ttk.Label(self, text='STB Liga', font=LARGE_FONT)
+        main_label.pack(pady=10, padx=10)
+        sub_label = ttk.Label(self, text='Export und Verarbeitung', font=SMALL_FONT)
+        sub_label.pack(pady=5, padx=5)
+        
+        main_notebook = ttk.Notebook(self)
+        acquisition_tab = AcquisitionTab(self, controller)
+        main_notebook.add(acquisition_tab, text="Data laden", sticky="nsew", padding=3)
+        data_display_tab = DataDisplayTab(self, controller)
+        main_notebook.add(data_display_tab, text="Data anzeigen", sticky="nsew", padding=3)
+        main_notebook.pack()
 
 class STB_App(tk.Tk):
     FRAMES = (
@@ -32,13 +64,18 @@ class STB_App(tk.Tk):
     )
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
+        self.logger = logging.getLogger('STB_App')
+        self.logger.debug('Starting driver...')
         self.driver = driver.create_webdriver()
+        self.aquired_data = {}
         self.protocol("WM_DELETE_WINDOW", self.__on_closing)
         self.title = "STB Liga export"
+
         self.container = tk.Frame(self)
         self.container.pack(side='top', fill='both', expand=True)
         self.container.grid_rowconfigure(0, weight=1)
         self.container.grid_columnconfigure(0, weight=1)
+
         self.frames = {}
         for F in STB_App.FRAMES:
             frame = F(self.container, self)
