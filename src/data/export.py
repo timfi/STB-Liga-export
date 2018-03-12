@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 from contextlib import contextmanager
+import os
 
 __all__ = [
     'excel_writer',
@@ -17,9 +18,9 @@ def excel_writer(path):
     writer.save()
 
 def write_data_to_csv(dfs=[], path='test.csv'):
-    '''A method to write a list of pandas dataframes to a csv file'''
-    with open(path, encoding='utf-8', mode='w') as f:
-        for df in dfs:
+    '''A method to write a list of pandas dataframes to a csv files'''
+    for i, df in enumerate(dfs):
+        with open(os.path.join(path, '_' + str(i) + '.csv'), encoding='utf-8', mode='w') as f:
             df.to_csv(f)
 
 def write_html_to_file(path, *, url=None, soup=None):

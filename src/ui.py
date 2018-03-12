@@ -6,25 +6,68 @@ from data import acquisition
 import logging
 import sys
 import os
-
-logger = logging.Logger(__name__)
+import asyncio
+from threading import Thread
+from concurrent.futures import ThreadPoolExecutor
+from threading import RLock
+from functools import partial
 
 LARGE_FONT = (
     'Verdana',
     12
 )
 
-class StartPage(tk.Frame):
+SMALL_FONT = (
+    'Verdana',
+    9
+)
+
+class AcquisitionTab(ttk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
-        label = ttk.Label(self, text='Hello World', font=LARGE_FONT)
-        label.pack(pady=10, padx=10)
-        button1 = ttk.Button(self, text='Print team_data to console', command=lambda: print(acquisition.get_team_data(driver=controller.driver)))
+        self.logger = logging.getLogger('AcquisitionTab')
+
+        button1 = ttk.Button(self, text='Print team_data to viewing tab',
+                             command=lambda: self.get_data(acquisition.MAPPINGS.TEAM, controller))
         button1.pack()
-        button2 = ttk.Button(self, text='Print ranking_data to console', command=lambda: print(acquisition.get_ranking_data(driver=controller.driver)))
+        button2 = ttk.Button(self, text='Print ranking_data to viewing tab',
+                             command=lambda: self.get_data(acquisition.MAPPINGS.RANKING, controller))
         button2.pack()
-        button3 = ttk.Button(self, text='Print encounter_data to console', command=lambda: print(acquisition.get_encounter_data(driver=controller.driver)))
+        button3 = ttk.Button(self, text='Print encounter_data to viewing tab',
+                             command=lambda: self.get_data(acquisition.MAPPINGS.ENCOUNTER, controller))
         button3.pack()
+
+    def get_data(self, data_type, controller):
+        self.logger.debug(f'Getting {str(data_type.__qualname__)}')
+        controller.driver_pool.submit(AcquisitionTab._get_data, data_type, controller)
+
+    @staticmethod
+    def _get_data(data_type, controller):
+        data = data_type(driver=controller.driver)
+        with controller.data_lock:
+            controller.aquired_data[data_type] = data
+        controller.event_generate("<<DUMP DATA>>")
+
+class DataDisplayTab(ttk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+
+class StartPage(ttk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self.logger = logging.getLogger('StartPage')
+
+        main_label = ttk.Label(self, text='STB Liga', font=LARGE_FONT)
+        main_label.pack(pady=10, padx=10)
+        sub_label = ttk.Label(self, text='Export und Verarbeitung', font=SMALL_FONT)
+        sub_label.pack(pady=5, padx=5)
+
+        main_notebook = ttk.Notebook(self)
+        acquisition_tab = AcquisitionTab(self, controller)
+        main_notebook.add(acquisition_tab, text="Data laden", sticky="nsew", padding=3)
+        data_display_tab = DataDisplayTab(self, controller)
+        main_notebook.add(data_display_tab, text="Data anzeigen", sticky="nsew", padding=3)
+        main_notebook.pack()
 
 class STB_App(tk.Tk):
     FRAMES = (
@@ -32,13 +75,26 @@ class STB_App(tk.Tk):
     )
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
+        self.logger = logging.getLogger('STB_App')
+        self.logger.debug('Starting driver...')
         self.driver = driver.create_webdriver()
+        self.driver.get('https://kutu.stb-liga.de/')
+
+        self.logger.debug('Starting ThreadPoolExecutor...')
+        self.driver_pool = ThreadPoolExecutor(max_workers=8)
+        
+        self.data_lock = RLock()
+        self.aquired_data = {}
+        self.bind("<<DUMP DATA>>", lambda e: print(self.aquired_data))
+
         self.protocol("WM_DELETE_WINDOW", self.__on_closing)
         self.title = "STB Liga export"
+
         self.container = tk.Frame(self)
         self.container.pack(side='top', fill='both', expand=True)
         self.container.grid_rowconfigure(0, weight=1)
         self.container.grid_columnconfigure(0, weight=1)
+
         self.frames = {}
         for F in STB_App.FRAMES:
             frame = F(self.container, self)
@@ -60,7 +116,7 @@ def setup_logging():
 
     log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    log_streamhandler = logging.StreamHandler(sys.stdout)
+    log_streamhandler = logging.StreamHandler(sys.stderr)
     log_streamhandler.setLevel(logging.DEBUG)
     log_streamhandler.setFormatter(log_formatter)
     root_logger.addHandler(log_streamhandler)
