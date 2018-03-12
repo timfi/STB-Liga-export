@@ -1,7 +1,13 @@
+# -*- coding: utf-8 -*-
 import tkinter as tk
 import tkinter.ttk as ttk
 import driver
-from data import acquisition as dr
+from data import acquisition
+import logging
+import sys
+import os
+
+logger = logging.Logger(__name__)
 
 LARGE_FONT = (
     'Verdana',
@@ -13,11 +19,11 @@ class StartPage(tk.Frame):
         tk.Frame.__init__(self, parent)
         label = ttk.Label(self, text='Hello World', font=LARGE_FONT)
         label.pack(pady=10, padx=10)
-        button1 = ttk.Button(self, text='Print team_data to console', command=lambda: print(dr.get_team_data(driver=controller.driver)))
+        button1 = ttk.Button(self, text='Print team_data to console', command=lambda: print(acquisition.get_team_data(driver=controller.driver)))
         button1.pack()
-        button2 = ttk.Button(self, text='Print ranking_data to console', command=lambda: print(dr.get_ranking_data(driver=controller.driver)))
+        button2 = ttk.Button(self, text='Print ranking_data to console', command=lambda: print(acquisition.get_ranking_data(driver=controller.driver)))
         button2.pack()
-        button3 = ttk.Button(self, text='Print encounter_data to console', command=lambda: print(dr.get_encounter_data(driver=controller.driver)))
+        button3 = ttk.Button(self, text='Print encounter_data to console', command=lambda: print(acquisition.get_encounter_data(driver=controller.driver)))
         button3.pack()
 
 class STB_App(tk.Tk):
@@ -48,9 +54,25 @@ class STB_App(tk.Tk):
         self.driver.quit()
         self.destroy()
 
+def setup_logging():
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+
+    log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    log_streamhandler = logging.StreamHandler(sys.stdout)
+    log_streamhandler.setLevel(logging.DEBUG)
+    log_streamhandler.setFormatter(log_formatter)
+    root_logger.addHandler(log_streamhandler)
+
+    log_filehandler = logging.FileHandler(os.path.join(os.path.dirname(os.getcwd()), 'log/ui.log'), encoding='utf-8')
+    log_filehandler.setFormatter(log_formatter)
+    root_logger.addHandler(log_filehandler)
+
 def main():
     app = STB_App()
     app.mainloop()
 
 if __name__ == '__main__':
+    setup_logging()
     main()
