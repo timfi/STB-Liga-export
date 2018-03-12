@@ -3,16 +3,20 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.firefox.options import Options as DriverOptions
 from selenium.common.exceptions import StaleElementReferenceException
+from selenium.webdriver.common.keys import Keys
 from contextlib import contextmanager
 from time import sleep
 from bs4 import BeautifulSoup
 import os
+from threading import RLock
 
 __all__ = [
     'start_webdriver',
     'create_webdriver',
     'extract_soup',
 ]
+
+DRIVER_LOCK = RLock()
 
 class page_has_loaded(object):
     '''An expectation for checking if the js on the page has already loaded the data.'''
@@ -57,7 +61,6 @@ def extract_soup(url, *, wait_timer=5, driver=None):
     driver - webdriver to use
     '''
     if not driver:
-        print("using local driver")
         with start_webdriver() as local_driver:
             if local_driver.current_url != url:
                 local_driver.get(url)
@@ -68,11 +71,17 @@ def extract_soup(url, *, wait_timer=5, driver=None):
                 sleep(wait_timer)
             return retrieve_soup(local_driver)
     else:
-        print("using foreign driver")
-        if driver.current_url != url:
-            driver.get(url)
-            sleep(wait_timer)
-        return retrieve_soup(driver)
+        with DRIVER_LOCK:
+            prev_window_handles = driver.window_handles
+            driver.execute_script(f"window.open('{url}', '_blank')")
+            current_window_handle = list(set(driver.window_handles) - set(prev_window_handles))[0]
+        sleep(wait_timer)
+        with DRIVER_LOCK:
+            driver.switch_to_window(current_window_handle)
+            soup = retrieve_soup(driver)
+            driver.close()
+            driver.switch_to_window(driver.window_handles[0])
+        return soup
 
 def retrieve_soup(driver):
     '''A method to retrieve the soup from a running webdriver.
