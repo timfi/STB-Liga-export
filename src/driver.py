@@ -47,7 +47,11 @@ def create_webdriver(*, headless=True):
     options = DriverOptions()
     if headless:
         options.add_argument('--headless')
-    path = os.path.join(os.path.dirname(os.getcwd()), 'drivers/geckodriver.exe')
+    if os.name == 'nt':
+        subpath = 'drivers/geckodriver.exe'
+    else:
+        subpath = 'drivers/geckodriver'
+    path = os.path.join(os.path.dirname(os.getcwd()), subpath)
     driver = webdriver.Firefox(firefox_options=options, executable_path=path)
     return driver
 
