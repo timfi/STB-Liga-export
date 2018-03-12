@@ -1,6 +1,7 @@
 import tkinter as tk
 import tkinter.ttk as ttk
-import data_retrieval as dr
+import driver
+from data import acquisition as dr
 
 LARGE_FONT = (
     'Verdana',
@@ -25,7 +26,7 @@ class STB_App(tk.Tk):
     )
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        self.driver = dr.create_webdriver(hide=True)
+        self.driver = driver.create_webdriver()
         self.protocol("WM_DELETE_WINDOW", self.__on_closing)
         self.title = "STB Liga export"
         self.container = tk.Frame(self)
