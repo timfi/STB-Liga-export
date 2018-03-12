@@ -42,10 +42,11 @@ def start_webdriver():
     yield driver
     driver.quit()
 
-def create_webdriver():
+def create_webdriver(*, headless=True):
     '''A method to create a selenium webdriver.'''
     options = DriverOptions()
-    options.add_argument('--headless')
+    if headless:
+        options.add_argument('--headless')
     path = os.path.join(os.path.dirname(os.getcwd()), 'drivers/geckodriver.exe')
     driver = webdriver.Firefox(firefox_options=options, executable_path=path)
     return driver

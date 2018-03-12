@@ -5,6 +5,7 @@ import pandas as pd
 import lxml
 from enum import Enum, unique
 from .processing import *
+from collections import namedtuple
 
 __all__ = [
     'get_ranking_data',
@@ -96,7 +97,9 @@ def get_encounter_data(encounter_id=1949, *, path=None, cleanup_func=cleanup_enc
     df = pd.read_html(str_table)[0]
     return cleanup_func(df)
 
-class MAPPINGS(Enum):
-    TEAM = get_team_data
-    RANKING = get_ranking_data
-    ENCOUNTER = get_encounter_data
+Mapping = namedtuple('Mapping', ('func', 'name', 'requires_id'))
+
+class MAPPINGS:
+    TEAM = Mapping(get_team_data, 'team_data', requires_id=True)
+    RANKING = Mapping(get_ranking_data, 'ranking_data', requires_id=False)
+    ENCOUNTER = Mapping(get_encounter_data, 'encounter_data', requires_id=True)

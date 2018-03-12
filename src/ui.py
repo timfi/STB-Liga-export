@@ -27,26 +27,19 @@ class AcquisitionTab(ttk.Frame):
         tk.Frame.__init__(self, parent)
         self.logger = logging.getLogger('AcquisitionTab')
 
+        entry_string = tk.StringVar()
+        entry_field = tk.Entry(self, textvariable=entry_string)
+        entry_field.pack()
+
         button1 = ttk.Button(self, text='Print team_data to viewing tab',
-                             command=lambda: self.get_data(acquisition.MAPPINGS.TEAM, controller))
+                             command=lambda: controller.get_data(acquisition.MAPPINGS.TEAM, entry_string.get()))
         button1.pack()
         button2 = ttk.Button(self, text='Print ranking_data to viewing tab',
-                             command=lambda: self.get_data(acquisition.MAPPINGS.RANKING, controller))
+                             command=lambda: controller.get_data(acquisition.MAPPINGS.RANKING))
         button2.pack()
         button3 = ttk.Button(self, text='Print encounter_data to viewing tab',
-                             command=lambda: self.get_data(acquisition.MAPPINGS.ENCOUNTER, controller))
+                             command=lambda: controller.get_data(acquisition.MAPPINGS.ENCOUNTER, entry_string.get()))
         button3.pack()
-
-    def get_data(self, data_type, controller):
-        self.logger.debug(f'Getting {str(data_type.__qualname__)}')
-        controller.driver_pool.submit(AcquisitionTab._get_data, data_type, controller)
-
-    @staticmethod
-    def _get_data(data_type, controller):
-        data = data_type(driver=controller.driver)
-        with controller.data_lock:
-            controller.aquired_data[data_type] = data
-        controller.event_generate("<<DUMP DATA>>")
 
 class DataDisplayTab(ttk.Frame):
     def __init__(self, parent, controller):
@@ -77,12 +70,12 @@ class STB_App(tk.Tk):
         tk.Tk.__init__(self, *args, **kwargs)
         self.logger = logging.getLogger('STB_App')
         self.logger.debug('Starting driver...')
-        self.driver = driver.create_webdriver()
+        self.driver = driver.create_webdriver(headless=False)
         self.driver.get('https://kutu.stb-liga.de/')
 
         self.logger.debug('Starting ThreadPoolExecutor...')
         self.driver_pool = ThreadPoolExecutor(max_workers=8)
-        
+
         self.data_lock = RLock()
         self.aquired_data = {}
         self.bind("<<DUMP DATA>>", lambda e: print(self.aquired_data))
@@ -109,6 +102,24 @@ class STB_App(tk.Tk):
     def __on_closing(self):
         self.driver.quit()
         self.destroy()
+
+    def get_data(self, data_type, uid=None):
+        if data_type.requires_id:
+            self.logger.debug(f'Getting {str(data_type.name)}_{uid}')
+        else:
+            self.logger.debug(f'Getting {str(data_type.name)}')
+        self.driver_pool.submit(STB_App._get_data, data_type, self, uid)
+
+    @staticmethod
+    def _get_data(data_type, controller, uid=None):
+        if data_type.requires_id:
+            data = data_type.func(uid, driver=controller.driver)
+        else:
+            data = data_type.func(driver=controller.driver)
+
+        with controller.data_lock:
+            controller.aquired_data[data_type.name + f'_{uid}'] = data
+        controller.event_generate("<<DUMP DATA>>")
 
 def setup_logging():
     root_logger = logging.getLogger()
