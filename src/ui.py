@@ -70,9 +70,9 @@ def setup_logging():
     root_logger.addHandler(log_filehandler)
 
 def main():
+    setup_logging()
     app = STB_App()
     app.mainloop()
 
 if __name__ == '__main__':
-    setup_logging()
     main()
