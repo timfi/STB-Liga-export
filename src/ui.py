@@ -12,69 +12,109 @@ import asyncio
 from threading import Thread
 from concurrent.futures import ThreadPoolExecutor
 from threading import RLock
-from functools import partial
+from collections import namedtuple
+import inspect
+from inspect import signature
 
-LARGE_FONT = (
+Font = namedtuple('Font', ['tpye', 'size'])
+
+LARGE_FONT = Font(
     'Verdana',
     12
 )
 
-SMALL_FONT = (
+SMALL_FONT = Font(
     'Verdana',
     9
 )
 
-class AcquisitionTab(ttk.Frame):
+class Tab(tk.Frame):
+    """Baseclass for notebook tabs"""
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
-        self.logger = logging.getLogger('AcquisitionTab')
+        self.logger = logging.getLogger(self.__class__.__name__)
+        for x in range(3):
+            self.grid_rowconfigure(x, weight=1)
+            self.grid_columnconfigure(x, weight=1)
+        self.create_widgets(parent, controller)
 
-        entry_string = tk.StringVar()
-        entry_field = tk.Entry(self, textvariable=entry_string)
-        entry_field.pack()
+def make_tab(f):
+    """Function decorator to create tab-subclass defnitions from widget function."""
+    cleaned_sourcecode = "\n".join(map(lambda x: " " * 8 + x, inspect.getsource(f).split('\n')[2:]))
+    code = f'class {f.__name__}(Tab): \n' + \
+            '    def create_widgets(self, parent, controller): \n' + \
+            cleaned_sourcecode
+    temp_locals = {}
+    exec(code, globals(), temp_locals)
+    return temp_locals[f.__name__]
 
-        button1 = ttk.Button(self, text='Teamdaten laden',
-                             command=lambda: controller.get_data(acquisition.MAPPINGS.TEAM, entry_string.get()))
-        button1.pack()
-        button2 = ttk.Button(self, text='Ranglisten laden',
-                             command=lambda: controller.get_data(acquisition.MAPPINGS.RANKING))
-        button2.pack()
-        button3 = ttk.Button(self, text='Begegnung laden',
-                             command=lambda: controller.get_data(acquisition.MAPPINGS.ENCOUNTER, entry_string.get()))
-        button3.pack()
+@make_tab
+def AcquisitionTab():
+    entry_string = tk.StringVar()
+    id_entry_field = tk.Entry(self, textvariable=entry_string)
+    id_entry_field.grid(row=1, column=2, sticky='nsew')
 
-class ExportTab(ttk.Frame):
-    def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent)
+    team_data_button = ttk.Button(self, text='Teamdaten laden',
+                         command=lambda: controller.get_data(acquisition.MAPPINGS.TEAM, entry_string.get()))
+    team_data_button.grid(row=2, column=1, sticky='nsew')
+    ranking_data_button = ttk.Button(self, text='Ranglisten laden',
+                         command=lambda: controller.get_data(acquisition.MAPPINGS.RANKING))
+    ranking_data_button.grid(row=2, column=2, sticky='nsew')
+    encounter_data_button = ttk.Button(self, text='Begegnung laden',
+                         command=lambda: controller.get_data(acquisition.MAPPINGS.ENCOUNTER, entry_string.get()))
+    encounter_data_button.grid(row=2, column=3, sticky='nsew')
 
-        file_path = tk.StringVar()
-        dir_box = tk.Entry(self, textvariable=file_path, state="readonly")
-        dir_box.pack()
+@make_tab
+def ExportTab():
+    file_path = tk.StringVar()
+    selected_file_label = tk.Entry(self, textvariable=file_path, state="readonly")
+    selected_file_label.grid(row=1, column=1)
 
-        button0 = ttk.Button(self, text='Datei wählen',
-                             command=lambda: STB_App.ask_saveasfilename(file_path, ('Excel Datei', "*.xlsx")))
-        button0.pack()
-        button1 = ttk.Button(self, text='Daten als excel datei speichern',
-                             command=lambda: controller.export_excel(file_path.get()))
-        button1.pack()
+    file_picker_button = ttk.Button(self, text='Datei wählen',
+                         command=lambda: STB_App.ask_saveasfilename(file_path, ('Excel Datei', "*.xlsx")))
+    file_picker_button.grid(row=1, column=2)
+    export_button = ttk.Button(self, text='Daten als excel datei speichern',
+                         command=lambda: controller.export_excel(file_path.get()))
+    export_button.grid(row=2, column=1)
 
+@make_tab
+def VisualisationTab():
+    data_choice = tk.StringVar()
+    data_option = ttk.OptionMenu(self, variable=data_choice)
+    data_option.grid(row=1, column=1)
 
-class StartPage(ttk.Frame):
+    def update_data_choices(e):
+        controller.logger.debug('Updating visualisation choices')
+        data_choice.set('')
+        data_option['menu'].delete(0, 'end')
+        with controller.data_lock:
+            new_data_keys = list(controller.aquired_data.keys())
+        for choice in new_data_keys:
+            data_option['menu'].add_command(label=choice, command=tk._setit(data_choice, choice))
+
+    controller.bind("<<DATA UPDATED>>", update_data_choices)
+
+class StartPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         self.logger = logging.getLogger('StartPage')
+        self.config(background='#006db8')
 
-        main_label = ttk.Label(self, text='STB Liga', font=LARGE_FONT)
-        main_label.pack(pady=10, padx=10)
-        sub_label = ttk.Label(self, text='Export und Verarbeitung', font=SMALL_FONT)
-        sub_label.pack(pady=5, padx=5)
+        main_label = ttk.Label(self, text='STB Liga', font=LARGE_FONT,
+                               foreground='#cccccc', background='#006db8')
+        main_label.grid(column=2, row=1, sticky='n', padx=5, pady=5)
+        sub_label = ttk.Label(self, text='Export und Verarbeitung', font=SMALL_FONT,
+                              foreground='#cccccc', background='#006db8')
+        sub_label.grid(column=2, row=2, sticky="n", padx=5, pady=5)
 
         main_notebook = ttk.Notebook(self)
         acquisition_tab = AcquisitionTab(self, controller)
-        main_notebook.add(acquisition_tab, text="Daten laden", sticky="nsew", padding=3)
+        main_notebook.add(acquisition_tab, text="Acquise", sticky="nsew", padding=3)
         export_tab = ExportTab(self, controller)
-        main_notebook.add(export_tab, text="Daten exportieren", sticky="nsew", padding=3)
-        main_notebook.pack()
+        main_notebook.add(export_tab, text="Export", sticky="nsew", padding=3)
+        visualisation_tab = VisualisationTab(self, controller)
+        main_notebook.add(visualisation_tab, text="Visualisierung", sticky="nsew", padding=3)
+        main_notebook.grid(column=1, row=3, sticky="nwes", columnspan=3)
 
 class STB_App(tk.Tk):
     FRAMES = (
@@ -82,6 +122,8 @@ class STB_App(tk.Tk):
     )
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
+        self.resizable(False, False)
+
         self.logger = logging.getLogger('STB_App')
         self.logger.debug('Starting driver...')
         self.driver = driver.create_webdriver()
@@ -92,7 +134,6 @@ class STB_App(tk.Tk):
 
         self.data_lock = RLock()
         self.aquired_data = {}
-        self.bind("<<DUMP DATA>>", lambda e: print(self.aquired_data))
 
         self.protocol("WM_DELETE_WINDOW", self.__on_closing)
         self.title = "STB Liga export"
@@ -143,7 +184,7 @@ class STB_App(tk.Tk):
 
         with controller.data_lock:
             controller.aquired_data[data_type.name + f'_{uid}'] = data
-        controller.event_generate("<<DUMP DATA>>")
+        controller.event_generate("<<DATA UPDATED>>")
 
     @staticmethod
     def ask_saveasfilename(var, *file_types):
