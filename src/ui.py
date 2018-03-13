@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 import tkinter as tk
 import tkinter.ttk as ttk
+from tkinter import filedialog
+import pandas as pd
 import driver
-from data import acquisition
+from data import acquisition, export
 import logging
 import sys
 import os
@@ -31,19 +33,31 @@ class AcquisitionTab(ttk.Frame):
         entry_field = tk.Entry(self, textvariable=entry_string)
         entry_field.pack()
 
-        button1 = ttk.Button(self, text='Print team_data to viewing tab',
+        button1 = ttk.Button(self, text='Teamdaten laden',
                              command=lambda: controller.get_data(acquisition.MAPPINGS.TEAM, entry_string.get()))
         button1.pack()
-        button2 = ttk.Button(self, text='Print ranking_data to viewing tab',
+        button2 = ttk.Button(self, text='Ranglisten laden',
                              command=lambda: controller.get_data(acquisition.MAPPINGS.RANKING))
         button2.pack()
-        button3 = ttk.Button(self, text='Print encounter_data to viewing tab',
+        button3 = ttk.Button(self, text='Begegnung laden',
                              command=lambda: controller.get_data(acquisition.MAPPINGS.ENCOUNTER, entry_string.get()))
         button3.pack()
 
-class DataDisplayTab(ttk.Frame):
+class ExportTab(ttk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
+
+        file_path = tk.StringVar()
+        dir_box = tk.Entry(self, textvariable=file_path, state="readonly")
+        dir_box.pack()
+
+        button0 = ttk.Button(self, text='Datei wählen',
+                             command=lambda: STB_App.ask_saveasfilename(file_path, ('Excel Datei', "*.xlsx")))
+        button0.pack()
+        button1 = ttk.Button(self, text='Daten als excel datei speichern',
+                             command=lambda: controller.export_excel(file_path.get()))
+        button1.pack()
+
 
 class StartPage(ttk.Frame):
     def __init__(self, parent, controller):
@@ -57,9 +71,9 @@ class StartPage(ttk.Frame):
 
         main_notebook = ttk.Notebook(self)
         acquisition_tab = AcquisitionTab(self, controller)
-        main_notebook.add(acquisition_tab, text="Data laden", sticky="nsew", padding=3)
-        data_display_tab = DataDisplayTab(self, controller)
-        main_notebook.add(data_display_tab, text="Data anzeigen", sticky="nsew", padding=3)
+        main_notebook.add(acquisition_tab, text="Daten laden", sticky="nsew", padding=3)
+        export_tab = ExportTab(self, controller)
+        main_notebook.add(export_tab, text="Daten exportieren", sticky="nsew", padding=3)
         main_notebook.pack()
 
 class STB_App(tk.Tk):
@@ -70,11 +84,11 @@ class STB_App(tk.Tk):
         tk.Tk.__init__(self, *args, **kwargs)
         self.logger = logging.getLogger('STB_App')
         self.logger.debug('Starting driver...')
-        self.driver = driver.create_webdriver(headless=False)
+        self.driver = driver.create_webdriver()
         self.driver.get('https://kutu.stb-liga.de/')
 
         self.logger.debug('Starting ThreadPoolExecutor...')
-        self.driver_pool = ThreadPoolExecutor(max_workers=8)
+        self.worker_pool = ThreadPoolExecutor(max_workers=8)
 
         self.data_lock = RLock()
         self.aquired_data = {}
@@ -103,12 +117,22 @@ class STB_App(tk.Tk):
         self.driver.quit()
         self.destroy()
 
+    def export_excel(self, path):
+        self.logger.debug(f'Exporting dfs to {path}')
+        self.worker_pool.submit(STB_App.__export_excel, self.aquired_data, self, path)
+
+    @staticmethod
+    def __export_excel(data, controller, path):
+        with controller.data_lock, export.excel_writer(path) as writer:
+            for key, df in data.items():
+                df.to_excel(writer, sheet_name=key)
+
     def get_data(self, data_type, uid=None):
         if data_type.requires_id:
             self.logger.debug(f'Getting {str(data_type.name)}_{uid}')
         else:
             self.logger.debug(f'Getting {str(data_type.name)}')
-        self.driver_pool.submit(STB_App._get_data, data_type, self, uid)
+        self.worker_pool.submit(STB_App._get_data, data_type, self, uid)
 
     @staticmethod
     def _get_data(data_type, controller, uid=None):
@@ -120,6 +144,14 @@ class STB_App(tk.Tk):
         with controller.data_lock:
             controller.aquired_data[data_type.name + f'_{uid}'] = data
         controller.event_generate("<<DUMP DATA>>")
+
+    @staticmethod
+    def ask_saveasfilename(var, *file_types):
+        file_name = filedialog.asksaveasfilename(filetypes=[*file_types]) if file_types else filedialog.askopenfilename()
+        if file_name:
+            var.set(file_name)
+        else:
+            var.set('keine datei')
 
 def setup_logging():
     root_logger = logging.getLogger()

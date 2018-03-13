@@ -22,7 +22,7 @@ def cleanup_team_data(team_data):
     team_encounter_data.columns = ['Liga', 'Begin', 'Heim', 'Gast', 'Mannschaften', 'Punkte', 'TP', 'GP', 'Bemerkung']
     team_ranking_data = team_ranking_data.applymap(lambda x: x.split(':')[-1])
     team_ranking_data.columns = ['Platz', 'Mannschaft', 'Tabellenpunkte', 'Gerätepunkte', 'Wettkämpfe']
-    return team_encounter_data, team_ranking_data
+    return team_encounter_data#, team_ranking_data
 
 def cleanup_ranking_data(ranking_data):
     '''A method to clean up the given ranking data.
@@ -34,7 +34,7 @@ def cleanup_ranking_data(ranking_data):
         df = df.applymap(lambda x: x.split(':')[-1])
         df.columns = ['Platz', 'Mannschaft', 'Tabellenpunkte', 'Gerätepunkte', 'Wettkämpfe']
         return df
-    cleaned_ranking_data = list(map(clean, ranking_data))
+    cleaned_ranking_data = pd.concat(list(map(clean, ranking_data)), ignore_index=False)
     return cleaned_ranking_data
 
 def cleanup_encounter_data(encounter_data):
@@ -50,4 +50,4 @@ def cleanup_encounter_data(encounter_data):
     encounter_rteam_data = encounter_rteam_data[encounter_rteam_data.columns[::-1]]
     # Relable rTeams columns
     encounter_rteam_data.columns = [0,1,2,3,4]
-    return encounter_lteam_data, encounter_rteam_data
+    return pd.concat([encounter_lteam_data, encounter_rteam_data], ignore_index=False)
