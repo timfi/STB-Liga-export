@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 import logging
 from contextlib import contextmanager
 import json
+from helper import Singleton
 
 __all__ = [
     'start_webdriver',
@@ -37,7 +38,7 @@ class page_has_loaded(object):
         return len(children) > 0
 
 
-class Driver:
+class Driver(metaclass=Singleton):
     def __init__(self, *, path=None, number_of_workers=8, home_address=None, headless=False):
         self.logger = logging.getLogger(self.__class__.__qualname__)
         options = DriverOptions()

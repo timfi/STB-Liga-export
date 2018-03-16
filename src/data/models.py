@@ -2,7 +2,9 @@
 import enum
 import inspect
 import logging
+import sys
 from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 from threading import RLock
 
@@ -12,30 +14,13 @@ from sqlalchemy import Column, Integer, String, create_engine, Enum, \
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
 
+sys.path.append('..')
+from helpers import Singleton
+sys.path.remove('..')
+
 __all__ = [
     'DB',
 ]
-
-
-# taken from https://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
-class Singleton(type):
-    _instances = {}
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
-
-def threadsafe(cls):
-    _lock = RLock()
-    for name, attr in cls.__dict__.items():
-        if callable(attr) and name != '__init__':
-            @wraps(attr)
-            def wrapper(*args, **kwargs):
-                with _lock:
-                    val = attr(*args, **kwargs)
-                return val
-            setattr(cls, name, wrapper)
-    return cls
 
 def create_reprs(cls):
     for name, attr in cls.__dict__.items():
