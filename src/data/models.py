@@ -2,21 +2,14 @@
 import enum
 import inspect
 import logging
-import sys
-from collections import namedtuple
-from concurrent.futures import ThreadPoolExecutor
-from functools import wraps
-from threading import RLock
+from contextlib import contextmanager
 
-import pandas as pd
 from sqlalchemy import Column, Integer, String, create_engine, Enum, \
                         ForeignKey, Date, Float
-from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.orm import sessionmaker, scoped_session, relationship
 from sqlalchemy.ext.declarative import declarative_base
 
-sys.path.append('..')
-from helpers import Singleton
-sys.path.remove('..')
+from .helpers import Singleton
 
 __all__ = [
     'DB',
@@ -30,21 +23,39 @@ def create_reprs(cls):
 
 @create_reprs
 class DB(metaclass=Singleton):
-    _session = list()
-
     def __init__(self, *, echo=False):
         self.logger = logging.getLogger('DB')
+
         self.logger.debug('Creating database...')
         self._engine = DB.create(echo=echo)
+
         self.logger.debug('Creating session factory')
         self._session_factory = sessionmaker(bind=self._engine)
-        self._scoped_session = scoped_session(self._session_factory)
-        DB.sessions = []
+        self._scoped_session_factory = scoped_session(self._session_factory)
 
+    @contextmanager
     def get_session(self):
-        session = self._scoped_session()
-        self.sessions.append(session)
-        return session
+        session = self._session_factory()
+        try:
+            yield session
+            session.commit()
+        except:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    @contextmanager
+    def get_scoped_session(self):
+        session = self._scoped_session_factory()
+        try:
+            yield session
+            session.commit()
+        except:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
     @staticmethod
     def create(*, echo=False):
@@ -63,35 +74,39 @@ class DB(metaclass=Singleton):
             BEZIRKS = enum.auto()
             KREIS = enum.auto()
 
-        __tablename__ = 'league'
+        __tablename__ = 'leagues'
 
         id = Column(Integer, primary_key=True)
         name = Column(String, nullable=False)
         level = Column(Enum(LeagueLevel), nullable=False)
 
     class Team(Base):
-        __tablename__ = 'team'
+        __tablename__ = 'teams'
 
         id = Column(Integer, primary_key=True)
         name = Column(String, nullable=False)
-        league = Column(Integer, ForeignKey("league.id"), nullable=False)
+        league_id = Column(Integer, ForeignKey("leagues.id"), nullable=False)
+        league = relationship('League', back_populates='teams')
 
     class Gymnast(Base):
-        __tablename__ = 'gymnast'
+        __tablename__ = 'gymnasts'
 
         id = Column(Integer, primary_key=True)
         firstname = Column(String, nullable=False)
         lastname = Column(String, nullable=False)
-        team = Column(Integer, ForeignKey("team.id"), nullable=False)
+        team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+        team = relationship('Team', back_populates='gymnasts')
 
     class Standoff(Base):
-        __tablename__ = 'standoff'
+        __tablename__ = 'standoffs'
 
         id = Column(Integer, primary_key=True)
         timestamp = Column(Date, nullable=False)
         location = Column(String, nullable=False)
-        host = Column(Integer, ForeignKey('team.id'), nullable=False)
-        guest = Column(Integer, ForeignKey('team.id'), nullable=False)
+        host_id = Column(Integer, ForeignKey('teams.id'), nullable=False)
+        host = relationship('Team', back_populates='standoffs')
+        guest_id = Column(Integer, ForeignKey('teams.id'), nullable=False)
+        guest = relationship('Team', back_populates='standoffs')
 
     class Routine(Base):
         @enum.unique
@@ -103,11 +118,13 @@ class DB(metaclass=Singleton):
             BARREN = enum.auto()
             RECK = enum.auto()
 
-        __tablename__ = 'routine'
+        __tablename__ = 'routines'
 
         id = Column(Integer, primary_key=True)
         E = Column(Float, nullable=False)
         D = Column(Float, nullable=False)
         event = Column(Enum(Event), nullable=False)
-        gymnast = Column(Integer, ForeignKey('gymnast.id'), nullable=False)
-        standoff = Column(Integer, ForeignKey('standoff.id'), nullable=False)
+        gymnast_id = Column(Integer, ForeignKey('gymnasts.id'), nullable=False)
+        gymnast = relationship('Gymnast', back_populates='routines')
+        standoff_id = Column(Integer, ForeignKey('standoffs.id'), nullable=False)
+        standoff = relationship('Standoff', back_populates='routines')

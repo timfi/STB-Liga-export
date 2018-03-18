@@ -3,16 +3,13 @@ import logging
 import os
 import sys
 from collections import namedtuple
-from concurrent.futures import ThreadPoolExecutor
-from threading import RLock
 
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import filedialog
 
-
-from data.models import DB
-from driver import Driver
+from .data.models import DB
+from .driver import Driver
 
 project_dir = os.path.dirname(os.getcwd())
 
@@ -38,23 +35,6 @@ class Tab(tk.Frame):
             self.grid_rowconfigure(x, weight=1)
             self.grid_columnconfigure(x, weight=1)
         self.create_widgets()
-
-
-class AcquisitionTab(Tab):
-    def create_widgets(self):
-        entry_string = tk.StringVar()
-        id_entry_field = tk.Entry(self, textvariable=entry_string)
-        id_entry_field.grid(row=1, column=2, sticky='nsew')
-
-        team_data_button = ttk.Button(self, text='Teamdaten laden',
-                             command=lambda: self.parent.get_data(acquisition.MAPPINGS.TEAM, entry_string.get()))
-        team_data_button.grid(row=2, column=1, sticky='nsew')
-        ranking_data_button = ttk.Button(self, text='Ranglisten laden',
-                             command=lambda: self.parent.get_data(acquisition.MAPPINGS.RANKING))
-        ranking_data_button.grid(row=2, column=2, sticky='nsew')
-        encounter_data_button = ttk.Button(self, text='Begegnung laden',
-                             command=lambda: self.parent.get_data(acquisition.MAPPINGS.ENCOUNTER, entry_string.get()))
-        encounter_data_button.grid(row=2, column=3, sticky='nsew')
 
 
 class ExportTab(Tab):

@@ -1,41 +1,20 @@
 # -*- coding: utf-8 -*-
-from selenium import webdriver
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.firefox.options import Options as DriverOptions
-from selenium.common.exceptions import StaleElementReferenceException
-from selenium.webdriver.common.keys import Keys
-from time import sleep
-from bs4 import BeautifulSoup
-import os
-from threading import RLock
-from concurrent.futures import ThreadPoolExecutor
 import logging
+import os
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-import json
-from helper import Singleton
+from threading import RLock
+from time import sleep
+
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options as DriverOptions
+
+from .data.helpers import Singleton
 
 __all__ = [
-    'start_webdriver',
-    'create_webdriver',
-    'extract_soup',
+    'Driver',
 ]
-
-class page_has_loaded(object):
-    '''An expectation for checking if the js on the page has already loaded the data.'''
-    def __init__(self):
-        super(page_has_loaded, self).__init__()
-
-    def __call__(self, driver):
-        element = driver.find_element_by_tag_name('section')
-        children = element.find_elements_by_css_selector("*")
-        try:
-            if children[0].get_attribute('class') == "tooltip":
-                return False
-        except StaleElementReferenceException as e:
-            pass
-        except:
-            return False
-        return len(children) > 0
 
 
 class Driver(metaclass=Singleton):
@@ -52,55 +31,56 @@ class Driver(metaclass=Singleton):
             self._driver = webdriver.Firefox(firefox_options=options)
         self._lock = RLock()
         if home_address:
-            self.open_url(home_address)
+            self.get(home_address)
 
         self.logger.debug('Starting ThreadPoolExecutor...')
-        self._worker_pool = ThreadPoolExecutor(max_workers=8)
+        self._worker_pool = ThreadPoolExecutor(max_workers=number_of_workers)
 
     def get(self, url):
-        '''A threadsafe wrapper method for the standard get method of the webdriver.
+        """A threadsafe wrapper method for the standard get method of the webdriver.
 
-        <args>
+        :Args:
         url - the url to set the driver to
-        '''
+        """
         with self._lock:
             self._driver.get(url)
 
     def do(self, todo, callback, *args, **kwargs):
-        '''A method to submit a task request and callback to the drivers worker pool.
+        """A method to submit a task request and callback to the drivers worker pool.
 
-        <args>
-        todo - the url to get the data from
-        callback - the callback method to be added
-        * - any arguments needed for todo
+        :Args:
+            - todo: the url to get the data from
+            - callback: - the callback method to be added
+            - *: any arguments needed for todo
 
-        <kwargs>
-        * - any keyword arguments needed for todo
-        '''
+        :Kwargs:
+            - *: any keyword arguments needed for todo
+        """
         fut = self._worker_pool.submit(todo, *args, **kwargs)
         fut.add_done_callback(callback)
 
-    def extract_indexdb(self, url, callback, *, wait_timer=5, tables=[]):
-        '''A method to submit a indexdb extraction request and callback to the drivers worker pool.
+    def extract_indexdb(self, url, callback, *, wait_timer=5, tables=()):
+        """A method to submit a indexdb extraction request and callback to the drivers worker pool.
 
-        <args>
-        url - the url to get the indexdb from
-        callback - the callback method to be added
+        :Args:
+            - url: the url to get the indexdb from
+            - callback: the callback method to be added
 
-        <kwargs>
-        wait_timer - how long the driver should wait for at maximum
-        '''
-        self.do(self.__extract_indexdb, callback, url, wait_timer=wait_timer)#, tables=[])
+        :Kwargs:
+            - wait_timer: how long the driver should wait for at maximum
+        """
+        self.do(self.__extract_indexdb, callback, url, wait_timer=wait_timer)  # , tables=())
 
-    def __extract_indexdb(self, url, *, wait_timer=5, tables=['begegnung', 'person', 'mannschaft', 'tabelle', 'verein', 'halle', 'saison', 'cache']):
-        '''A method to extract the indexdb of a page, that waits for the js to load the data before extracting.
+    def __extract_indexdb(self, url, *, wait_timer=5, tables=('begegnung', 'person', 'mannschaft', 'tabelle', 'verein', 'halle', 'saison', 'cache')):
+        """A method to extract the indexdb of a page, that waits for the js to load the data before extracting.
 
-        <args>
+        :Args:
         url - the url to get the data from
 
-        <kwargs>
+        <kwargs:
         wait_timer - how long the driver should wait for at maximum
-        '''
+        """
+        # TODO fix js snippet for json style data extraction
         jssnippet = """
         var tbls = %s
         var ret={};
@@ -123,9 +103,9 @@ class Driver(metaclass=Singleton):
     			}
     		};
         });
-        CONSOLE.log(JSON.stringify(ret));
+        CONSOLE.log(ret);
         return JSON.stringify(ret)
-        """ % str(tables)
+        """ % str(list(tables))
         with self.__open_new_tab(url, wait_timer=wait_timer):
             self.logger.debug(f"Running jssnippet: {jssnippet}")
             JSON = self._driver.execute_script(jssnippet)
@@ -133,26 +113,26 @@ class Driver(metaclass=Singleton):
         return JSON
 
     def extract_soup(self, url, callback, *, wait_timer=5):
-        '''A method to submit a soup extraction request and callback to the drivers worker pool.
+        """A method to submit a soup extraction request and callback to the drivers worker pool.
 
-        <args>
-        url - the url to get the data from
-        callback - the callback method to be added
+        :Args:
+            - url: the url to get the data from
+            - callback: the callback method to be added
 
-        <kwargs>
-        wait_timer - how long the driver should wait for at maximum
-        '''
+        :Kwargs:
+            - wait_timer: how long the driver should wait for at maximum
+        """
         self.do(self.__extract_soup, callback, url, wait_timer=wait_timer)
 
     def __extract_soup(self, url, *, wait_timer=5):
-        '''A method to extract the html of a page, that waits for the js to load the data before extracting.
+        """A method to extract the html of a page, that waits for the js to load the data before extracting.
 
-        <args>
-        url - the url to get the data from
+        :Args:
+            - url: the url to get the data from
 
-        <kwargs>
-        wait_timer - how long the driver should wait for at maximum
-        '''
+        :Kwargs:
+            - wait_timer: how long the driver should wait for at maximum
+        """
         jssnippet = "return document.getElementsByTagName('html')[0].innerHTML"
         with self.__open_new_tab(url, wait_timer=wait_timer):
             soup = BeautifulSoup(self._driver.execute_script(jssnippet), 'html.parser')
@@ -160,24 +140,24 @@ class Driver(metaclass=Singleton):
 
     @contextmanager
     def __open_new_tab(self, url, *, wait_timer=5):
-        '''A method to open a url in a new tab and wait for a given time before yielding control back to caller.
+        """A contextmanager to open a url in a new tab and wait for a given time before yielding control back to caller.
 
-        <args>
-        url - the url to go to
+        :Args:
+            - url: the url to go to
 
-        <kwargs>
-        wait_timer - how long the driver should wait for at maximum
-        '''
+        :Kwargs:
+            - wait_timer - how long the driver should wait for at maximum
+        """
         with self._lock:
             prev_window_handles = self._driver.window_handles
             self._driver.execute_script(f"window.open('{url}', '_blank')")
             current_window_handle = list(set(self._driver.window_handles) - set(prev_window_handles))[0]
         sleep(wait_timer)
         with self._lock:
-            self._driver.switch_to_window(current_window_handle)
+            self._driver.switch_to.window(current_window_handle)
             yield
             self._driver.close()
-            self._driver.switch_to_window(self._driver.window_handles[0])
+            self._driver.switch_to.window(self._driver.window_handles[0])
 
     def quit(self):
         with self._lock:
