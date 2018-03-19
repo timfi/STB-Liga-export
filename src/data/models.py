@@ -23,6 +23,8 @@ def create_reprs(cls):
 
 @create_reprs
 class DB(metaclass=Singleton):
+    Base = declarative_base()
+
     def __init__(self, *, echo=False):
         self.logger = logging.getLogger('DB')
 
@@ -34,20 +36,8 @@ class DB(metaclass=Singleton):
         self._scoped_session_factory = scoped_session(self._session_factory)
 
     @contextmanager
-    def get_session(self):
-        session = self._session_factory()
-        try:
-            yield session
-            session.commit()
-        except:
-            session.rollback()
-            raise
-        finally:
-            session.close()
-
-    @contextmanager
-    def get_scoped_session(self):
-        session = self._scoped_session_factory()
+    def get_session(self, *, scoped=False):
+        session = self._scoped_session_factory() if scoped else self._session_factory()
         try:
             yield session
             session.commit()
@@ -58,12 +48,10 @@ class DB(metaclass=Singleton):
             session.close()
 
     @staticmethod
-    def create(*, echo=False):
-        engine = create_engine('sqlite:///:memory:', echo=echo)
+    def create(*, echo=False, descriptor='sqlite:///:memory:'):
+        engine = create_engine(descriptor, echo=echo)
         DB.Base.metadata.create_all(engine)
         return engine
-
-    Base = declarative_base()
 
     class League(Base):
         @enum.unique

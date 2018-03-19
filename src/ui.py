@@ -76,6 +76,9 @@ class STB_App(tk.Tk):
 
         self.protocol("WM_DELETE_WINDOW", self.__on_closing)
 
+        self.create_widgets()
+
+    def create_widgets(self):
         self.title = "STB Liga export"
         self.config(background='#006db8')
 

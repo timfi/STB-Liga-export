@@ -75,10 +75,10 @@ class Driver(metaclass=Singleton):
         """A method to extract the indexdb of a page, that waits for the js to load the data before extracting.
 
         :Args:
-        url - the url to get the data from
+            - url: the url to get the data from
 
-        <kwargs:
-        wait_timer - how long the driver should wait for at maximum
+        :Kwargs:
+            - wait_timer: how long the driver should wait for at maximum
         """
         # TODO fix js snippet for json style data extraction
         jssnippet = """
