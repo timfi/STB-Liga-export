@@ -6,9 +6,12 @@ from contextlib import contextmanager
 from threading import RLock
 from time import sleep
 
+import pandas as pd
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options as DriverOptions
+from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import SessionNotCreatedException, WebDriverException
 
 from .data.helpers import Singleton
 
@@ -40,23 +43,23 @@ class Driver(metaclass=Singleton):
         """A threadsafe wrapper method for the standard get method of the webdriver.
 
         :Args:
-        url - the url to set the driver to
+            - url: the url to set the driver to
         """
         with self._lock:
             self._driver.get(url)
 
-    def do(self, todo, callback, *args, **kwargs):
+    def do(self, task, callback, *args, **kwargs):
         """A method to submit a task request and callback to the drivers worker pool.
 
         :Args:
-            - todo: the url to get the data from
-            - callback: - the callback method to be added
-            - *: any arguments needed for todo
+            - task: the url to get the data from
+            - callback: - the callback method to be added (Signature: future ==> void)
+            - *: any arguments needed for task
 
         :Kwargs:
-            - *: any keyword arguments needed for todo
+            - *: any keyword arguments needed for task
         """
-        fut = self._worker_pool.submit(todo, *args, **kwargs)
+        fut = self._worker_pool.submit(task, *args, **kwargs)
         fut.add_done_callback(callback)
 
     def extract_indexdb(self, url, callback, *, wait_timer=5, tables=()):
@@ -64,7 +67,7 @@ class Driver(metaclass=Singleton):
 
         :Args:
             - url: the url to get the indexdb from
-            - callback: the callback method to be added
+            - callback: the callback method to be added (Signature: future ==> void)
 
         :Kwargs:
             - wait_timer: how long the driver should wait for at maximum
@@ -82,42 +85,43 @@ class Driver(metaclass=Singleton):
         """
         # TODO fix js snippet for json style data extraction
         jssnippet = """
-        var tbls = %s
-        var ret={};
+        var tbl = "{}";
+        CONSOLE.log("------------------------------");
+        CONSOLE.log("> Started extraction of " + tbl);
+        var ret=[];
+        var done = false;
+        var trans = DB.db.transaction([tbl], "readonly");
+        var store = trans.objectStore(tbl);
+        var range = IDBKeyRange.lowerBound(0);
+        var cursorRequest = store.openCursor(range);
 
-		tbls.forEach(function(tbl) {
-            var trans = DB.db.transaction([tbl], "readonly");
-            var store = trans.objectStore(tbl);
-            var range = IDBKeyRange.lowerBound(0);
-            var cursorRequest = store.openCursor(range);
-
-    		var local = [];
-
-    		cursorRequest.onsuccess = function(evt) {
-    			if(evt.target.result) {
-    				local.push(evt.target.result.value);
-    				evt.target.result.continue();
-    			}
-    			else {
-    				ret[tbl]=local
-    			}
-    		};
-        });
+        cursorRequest.onsuccess = function(evt) {{
+            if(evt.target.result) {{
+                ret.push(evt.target.result.value);
+                evt.target.result.continue();
+            }}
+            else {{
+                done = true;
+            }}
+        }};
+        CONSOLE.log("> Done with " + tbl);
         CONSOLE.log(ret);
-        return JSON.stringify(ret)
-        """ % str(list(tables))
+        return ret
+        """
+        ret = {}
         with self.__open_new_tab(url, wait_timer=wait_timer):
-            self.logger.debug(f"Running jssnippet: {jssnippet}")
-            JSON = self._driver.execute_script(jssnippet)
+            for table in tables:
+                self.logger.debug(f"Running jssnippet: {jssnippet.format(table)}")
+                ret[table] = pd.DataFrame(self._driver.execute_script(jssnippet.format(table)))
             input()
-        return JSON
+        return ret
 
     def extract_soup(self, url, callback, *, wait_timer=5):
         """A method to submit a soup extraction request and callback to the drivers worker pool.
 
         :Args:
             - url: the url to get the data from
-            - callback: the callback method to be added
+            - callback: the callback method to be added (Signature: future ==> void)
 
         :Kwargs:
             - wait_timer: how long the driver should wait for at maximum
@@ -155,10 +159,17 @@ class Driver(metaclass=Singleton):
         sleep(wait_timer)
         with self._lock:
             self._driver.switch_to.window(current_window_handle)
+            self._driver.find_element_by_xpath("//body").send_keys(Keys.F12)
             yield
             self._driver.close()
             self._driver.switch_to.window(self._driver.window_handles[0])
 
     def quit(self):
         with self._lock:
-            self._driver.quit()
+            try:
+                self._driver.quit()
+            except WebDriverException as e:
+                if e.msg == "Failed to decode response from marionette":
+                    pass
+            except SessionNotCreatedException:
+                pass
