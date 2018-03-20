@@ -34,6 +34,7 @@ class DB(metaclass=Singleton):
         self.logger.debug('Creating session factory')
         self._session_factory = sessionmaker(bind=self._engine)
         self._scoped_session_factory = scoped_session(self._session_factory)
+        
 
     @contextmanager
     def get_session(self, *, scoped=False):

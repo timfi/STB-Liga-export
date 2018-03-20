@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import json
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
@@ -11,7 +12,7 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options as DriverOptions
 from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import SessionNotCreatedException, WebDriverException
+from selenium.common.exceptions import SessionNotCreatedException, WebDriverException, NoSuchElementException
 
 from .data.helpers import Singleton
 
@@ -74,7 +75,7 @@ class Driver(metaclass=Singleton):
         """
         self.do(self.__extract_indexdb, callback, url, wait_timer=wait_timer)  # , tables=())
 
-    def __extract_indexdb(self, url, *, wait_timer=5, tables=('begegnung', 'person', 'mannschaft', 'tabelle', 'verein', 'halle', 'saison', 'cache')):
+    def __extract_indexdb(self, url, *, wait_timer=5, tables=('person', 'mannschaft', 'tabelle', 'verein', 'halle', 'saison', 'cache', 'begegnung')):
         """A method to extract the indexdb of a page, that waits for the js to load the data before extracting.
 
         :Args:
@@ -84,12 +85,12 @@ class Driver(metaclass=Singleton):
             - wait_timer: how long the driver should wait for at maximum
         """
         # TODO fix js snippet for json style data extraction
-        jssnippet = """
+        js_get = """
         var tbl = "{}";
+        var templist = document.createElement('templist-' + tbl);
+        document.body.appendChild(templist);
         CONSOLE.log("------------------------------");
         CONSOLE.log("> Started extraction of " + tbl);
-        var ret=[];
-        var done = false;
         var trans = DB.db.transaction([tbl], "readonly");
         var store = trans.objectStore(tbl);
         var range = IDBKeyRange.lowerBound(0);
@@ -97,23 +98,40 @@ class Driver(metaclass=Singleton):
 
         cursorRequest.onsuccess = function(evt) {{
             if(evt.target.result) {{
-                ret.push(evt.target.result.value);
+                var s = document.createTextNode(JSON.stringify(evt.target.result.value)+'<->');
+                templist.appendChild(s);
                 evt.target.result.continue();
             }}
             else {{
-                done = true;
+                var s = document.createTextNode('[DONE]');
+                templist.appendChild(s);
             }}
         }};
+        
         CONSOLE.log("> Done with " + tbl);
-        CONSOLE.log(ret);
-        return ret
         """
         ret = {}
         with self.__open_new_tab(url, wait_timer=wait_timer):
             for table in tables:
-                self.logger.debug(f"Running jssnippet: {jssnippet.format(table)}")
-                ret[table] = pd.DataFrame(self._driver.execute_script(jssnippet.format(table)))
-            input()
+                # start js snippet
+                self._driver.execute_script(js_get.format(table))
+                templist_name = 'templist-'+table
+
+                # wait for the db cursor to reach the end
+                done = False
+                while not done:
+                    try:
+                        sleep(1)
+                        if '[DONE]' in self._driver.find_element_by_tag_name(templist_name).text:
+                            self.logger.debug(f'Found templist <{templist_name}>')
+                            done = True
+                    except NoSuchElementException:
+                        pass
+
+                # grad clear text data from the pages html
+                res = self._driver.find_element_by_tag_name(templist_name).text
+                ret[table] = pd.DataFrame([json.loads(x) for x in res.split('<->')[:-1]])
+                self.logger.debug(f"{table} ==> {ret[table]}")
         return ret
 
     def extract_soup(self, url, callback, *, wait_timer=5):
@@ -169,7 +187,7 @@ class Driver(metaclass=Singleton):
             try:
                 self._driver.quit()
             except WebDriverException as e:
-                if e.msg == "Failed to decode response from marionette":
+                if "Failed to decode response from marionette" in e.msg:
                     pass
             except SessionNotCreatedException:
                 pass

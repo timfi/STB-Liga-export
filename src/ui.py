@@ -9,11 +9,12 @@ import tkinter.ttk as ttk
 from tkinter import filedialog
 
 from .data.models import DB
+from .data.processing import cleanup_indexdb_dump
 from .driver import Driver
 
 project_dir = os.path.dirname(os.getcwd())
 
-Font = namedtuple('Font', ['tpye', 'size'])
+Font = namedtuple('Font', ['type', 'size'])
 
 LARGE_FONT = Font(
     'Verdana',
@@ -68,11 +69,9 @@ class STB_App(tk.Tk):
 
         self.logger.debug('Starting driver...')
         driver_path = os.path.join(project_dir, 'drivers/geckodriver.exe')
-        self.driver = Driver(path=driver_path, headless=False)
+        self.driver = Driver(path=driver_path, headless=True)
 
-        def print_callback(future):
-            print('>>>> ', future.result())
-        self.driver.extract_indexdb('https://kutu.stb-liga.de', print_callback)
+        self.driver.extract_indexdb('https://kutu.stb-liga.de', cleanup_indexdb_dump)
 
         self.protocol("WM_DELETE_WINDOW", self.__on_closing)
 
