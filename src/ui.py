@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
+import logging.config
+
 import os
 import sys
 from enum import Enum, unique
@@ -15,6 +17,7 @@ from .processing import cleanup_indexdb_dump, STB_DB_CLEANUP_MAP
 from .driver import STBDriver
 
 project_dir = os.path.dirname(os.getcwd())
+logging.config.fileConfig(os.path.join(project_dir, 'logging.ini'))
 
 Font = namedtuple('Font', ['type', 'size'])
 
@@ -69,10 +72,10 @@ class STBApp(tk.Tk):
         self.resizable(False, False)
         self.logger = logging.getLogger('STB_App')
 
-        self.logger.debug('Creating database...')
+        self.logger.info('Creating database...')
         self.db = STBDB()
 
-        self.logger.debug('Starting driver...')
+        self.logger.info('Starting driver...')
         driver_path = os.path.join(project_dir, 'drivers/geckodriver.exe')
         self.driver = STBDriver(path=driver_path, headless=True)
 
@@ -131,7 +134,7 @@ def setup_logging():
 
 
 def main():
-    setup_logging()
+    # setup_logging()
     app = STBApp()
     app.mainloop()
 

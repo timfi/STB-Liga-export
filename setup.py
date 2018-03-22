@@ -9,11 +9,11 @@ setup(
     author='U2328 and iconstrife',
     package_dir={
         'STB-Liga-export': 'src',
-        'STB-Liga-export.data': 'src/data',
+        'STB-Liga-export.lib': 'src/lib',
     },
     packages=['STB-Liga-export'],
     entry_points={
-        'console_scripts': ['STB_Liga=src.ui:main',],
+        'console_scripts': ['STB_Liga=src.main:main'],
     },
     install_requires=requirements,
 )
