@@ -2,29 +2,33 @@
 import logging
 import os
 import sys
+from enum import Enum, unique
 from collections import namedtuple
+from functools import partial
 
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import filedialog
 
-from .data.models import DB
-from .data.processing import cleanup_indexdb_dump
-from .driver import Driver
+from .models import STBDB
+from .processing import cleanup_indexdb_dump, STB_DB_CLEANUP_MAP
+from .driver import STBDriver
 
 project_dir = os.path.dirname(os.getcwd())
 
 Font = namedtuple('Font', ['type', 'size'])
 
-LARGE_FONT = Font(
-    'Verdana',
-    12
-)
+@unique
+class Fonts(Enum):
+    LARGE_FONT = Font(
+        'Verdana',
+        12
+    )
+    SMALL_FONT = Font(
+        'Verdana',
+        9
+    )
 
-SMALL_FONT = Font(
-    'Verdana',
-    9
-)
 
 class Tab(tk.Frame):
     """Baseclass for notebook tabs"""
@@ -45,7 +49,7 @@ class ExportTab(Tab):
         selected_file_label.grid(row=1, column=1)
 
         file_picker_button = ttk.Button(self, text='Datei wählen',
-                             command=lambda: STB_App.ask_saveasfilename(file_path, ('Excel Datei', "*.xlsx")))
+                             command=lambda: STBApp.ask_saveasfilename(file_path, ('Excel Datei', "*.xlsx")))
         file_picker_button.grid(row=1, column=2)
         export_button = ttk.Button(self, text='Daten als excel datei speichern',
                         command=lambda: self.logger.debug('export button pressed <ADD ACTION>'))
@@ -58,20 +62,22 @@ class VisualisationTab(Tab):
         data_option = ttk.OptionMenu(self, variable=data_choice)
         data_option.grid(row=1, column=1)
 
-class STB_App(tk.Tk):
+
+class STBApp(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
         self.resizable(False, False)
         self.logger = logging.getLogger('STB_App')
 
         self.logger.debug('Creating database...')
-        self.db = DB()
+        self.db = STBDB()
 
         self.logger.debug('Starting driver...')
         driver_path = os.path.join(project_dir, 'drivers/geckodriver.exe')
-        self.driver = Driver(path=driver_path, headless=True)
+        self.driver = STBDriver(path=driver_path, headless=True)
 
-        self.driver.extract_indexdb('https://kutu.stb-liga.de', cleanup_indexdb_dump)
+        self.driver.extract_indexdb('https://kutu.stb-liga.de', STBDB.DEFAULT_INDEXDB_TABLES,
+                                    partial(cleanup_indexdb_dump, cleanup_functions=STB_DB_CLEANUP_MAP))
 
         self.protocol("WM_DELETE_WINDOW", self.__on_closing)
 
@@ -81,10 +87,10 @@ class STB_App(tk.Tk):
         self.title = "STB Liga export"
         self.config(background='#006db8')
 
-        main_label = ttk.Label(self, text='STB Liga', font=LARGE_FONT,
+        main_label = ttk.Label(self, text='STB Liga', font=Fonts.LARGE_FONT,
                                foreground='#cccccc', background='#006db8')
         main_label.grid(column=2, row=1, sticky='n', padx=5, pady=5)
-        sub_label = ttk.Label(self, text='Export und Verarbeitung', font=SMALL_FONT,
+        sub_label = ttk.Label(self, text='Export und Verarbeitung', font=Fonts.SMALL_FONT,
                               foreground='#cccccc', background='#006db8')
         sub_label.grid(column=2, row=2, sticky="n", padx=5, pady=5)
 
@@ -107,6 +113,7 @@ class STB_App(tk.Tk):
         else:
             var.set('keine datei')
 
+
 def setup_logging():
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
@@ -122,10 +129,12 @@ def setup_logging():
     log_filehandler.setFormatter(log_formatter)
     root_logger.addHandler(log_filehandler)
 
+
 def main():
     setup_logging()
-    app = STB_App()
+    app = STBApp()
     app.mainloop()
+
 
 if __name__ == '__main__':
     main()
