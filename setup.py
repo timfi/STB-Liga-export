@@ -9,9 +9,9 @@ setup(
     author='U2328 and iconstrife',
     package_dir={
         'STB-Liga-export': 'src',
-        'STB-Liga-export.lib': 'src/lib',
+        'misclib': 'src/lib',
     },
-    packages=['STB-Liga-export'],
+    packages=['STB-Liga-export', 'misclib'],
     entry_points={
         'console_scripts': ['STB_Liga=src.main:main'],
     },

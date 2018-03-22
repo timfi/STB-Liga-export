@@ -7,6 +7,7 @@ __all__ = [
     'Singleton',
     'thread_safe',
     'create_reprs',
+    'snake_to_camel',
 ]
 
 
@@ -40,3 +41,6 @@ def create_reprs(cls):
                 return f'<{self.__name__} {str({key: getattr(self, key) for key, item in self.__dict__ if instanceof(item, Column)})}>'
             setattr(attr, '__repr__', __repr__)
     return cls
+
+def snake_to_camel(string):
+    return ''.join(word.capitalize() for word in string.split('_'))

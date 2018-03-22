@@ -14,10 +14,10 @@ from tkinter import filedialog
 
 from .models import STBDB
 from .processing import cleanup_indexdb_dump, STB_DB_CLEANUP_MAP
-from .driver import STBDriver
+from .driver import STBDriver, extract_index_db
 
-project_dir = os.path.dirname(os.getcwd())
-logging.config.fileConfig(os.path.join(project_dir, 'logging.ini'))
+project_dir = os.path.dirname(os.path.dirname(__file__))
+# logging.config.fileConfig(os.path.join(project_dir, 'logging.ini'))
 
 Font = namedtuple('Font', ['type', 'size'])
 
@@ -79,8 +79,8 @@ class STBApp(tk.Tk):
         driver_path = os.path.join(project_dir, 'drivers/geckodriver.exe')
         self.driver = STBDriver(path=driver_path, headless=True)
 
-        self.driver.extract_indexdb('https://kutu.stb-liga.de', STBDB.DEFAULT_INDEXDB_TABLES,
-                                    partial(cleanup_indexdb_dump, cleanup_functions=STB_DB_CLEANUP_MAP))
+        self.driver.do(extract_index_db('https://kutu.stb-liga.de', STBDB.DEFAULT_INDEXDB_TABLES),
+                       partial(cleanup_indexdb_dump, cleanup_functions=STB_DB_CLEANUP_MAP))
 
         self.protocol("WM_DELETE_WINDOW", self.__on_closing)
 
@@ -134,7 +134,7 @@ def setup_logging():
 
 
 def main():
-    # setup_logging()
+    setup_logging()
     app = STBApp()
     app.mainloop()
 
