@@ -42,5 +42,12 @@ def create_reprs(cls):
             setattr(attr, '__repr__', __repr__)
     return cls
 
+
 def snake_to_camel(string):
     return ''.join(word.capitalize() for word in string.split('_'))
+
+
+def export(defn):
+    globals()[defn.__name__] = defn
+    __all__.append(defn.__name__)
+    return defn

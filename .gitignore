@@ -14,7 +14,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+^lib/
 lib64/
 parts/
 sdist/
@@ -109,3 +109,4 @@ venv.bak/
 */geckodrive.log
 
 *test*
+log/

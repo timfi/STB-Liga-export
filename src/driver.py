@@ -5,7 +5,8 @@ from time import sleep
 import pandas as pd
 from selenium.common.exceptions import NoSuchElementException
 
-from .lib import Driver
+from .lib.concurrent import make_task_factory
+from .lib.driver import Driver
 
 __all__ = [
     'STBDriver',
@@ -19,18 +20,17 @@ class STBDriver(Driver):
         super(STBDriver, self).__init__(*args, **kwargs)
 
 
-@Driver.make_task
+@make_task_factory
 def extract_index_db(driver, url, tables, *, wait_timer=5):
     """A method to extract the indexdb of a page, that waits for the js to load the data before extracting.
 
-    :Args:
-        - url: the url to get the data from
-        - tables: the tables to extract
-
-    :Kwargs:
-        - wait_timer: how long the driver should wait for at maximum
+    :param driver: driver to operate on
+    :param url: the url to get the data from
+    :param tables: the tables to extract
+    :param wait_timer: how long the driver should wait for at maximum
+    :return: dict with extracted values
     """
-    js_get = """
+    js_snippet = """
     var tbl = "{}";
     var templist = document.createElement('templist-' + tbl);
     document.body.appendChild(templist);
@@ -59,7 +59,7 @@ def extract_index_db(driver, url, tables, *, wait_timer=5):
     with driver.open_new_tab(url, wait_timer=wait_timer):
         for table in tables:
             # start js snippet
-            driver.execute_script(js_get.format(table))
+            driver.execute_script(js_snippet.format(table))
             templist_name = 'templist-' + table
 
             # wait for the db cursor to reach the end

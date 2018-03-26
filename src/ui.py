@@ -6,20 +6,27 @@ import os
 import sys
 from enum import Enum, unique
 from collections import namedtuple
-from functools import partial
 
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import filedialog
 
+
 from .models import STBDB
-from .processing import cleanup_indexdb_dump, STB_DB_CLEANUP_MAP
-from .driver import STBDriver, extract_index_db
+# from .processing import cleanup_indexdb_dump, STB_DB_CLEANUP_MAP
+from .driver import STBDriver  # , extract_index_db
 
 project_dir = os.path.dirname(os.path.dirname(__file__))
-# logging.config.fileConfig(os.path.join(project_dir, 'logging.ini'))
+
+
+def dfs_to_csv(fut):
+    dfs = fut.result()
+    for key, df in dfs.items():
+        df.to_csv(os.path.join(project_dir, 'exports/' + key + '.csv'), encoding='utf-8', index=True)
+
 
 Font = namedtuple('Font', ['type', 'size'])
+
 
 @unique
 class Fonts(Enum):
@@ -42,7 +49,7 @@ class Tab(tk.Frame):
         for x in range(3):
             self.grid_rowconfigure(x, weight=1)
             self.grid_columnconfigure(x, weight=1)
-        self.create_widgets()
+        getattr(self, 'create_widgets')()
 
 
 class ExportTab(Tab):
@@ -79,8 +86,7 @@ class STBApp(tk.Tk):
         driver_path = os.path.join(project_dir, 'drivers/geckodriver.exe')
         self.driver = STBDriver(path=driver_path, headless=True)
 
-        self.driver.do(extract_index_db('https://kutu.stb-liga.de', STBDB.DEFAULT_INDEXDB_TABLES),
-                       partial(cleanup_indexdb_dump, cleanup_functions=STB_DB_CLEANUP_MAP))
+        # self.driver.do(extract_index_db('https://kutu.stb-liga.de', STBDB.DEFAULT_INDEXDB_TABLES), dfs_to_csv)
 
         self.protocol("WM_DELETE_WINDOW", self.__on_closing)
 
@@ -105,8 +111,8 @@ class STBApp(tk.Tk):
         main_notebook.grid(column=1, row=3, sticky="nwes", columnspan=3)
 
     def __on_closing(self):
-        self.driver.quit()
         self.destroy()
+        self.driver.quit()
 
     @staticmethod
     def ask_saveasfilename(var, *file_types):
@@ -132,12 +138,7 @@ def setup_logging():
     log_filehandler.setFormatter(log_formatter)
     root_logger.addHandler(log_filehandler)
 
-
 def main():
     setup_logging()
     app = STBApp()
     app.mainloop()
-
-
-if __name__ == '__main__':
-    main()

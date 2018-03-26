@@ -4,16 +4,14 @@ with open('requirements.txt', 'r') as f:
     requirements = f.read().splitlines()[1:]
 
 setup(
-    name='STB-Liga-export',
+    name='STB_Liga_export',
     version='1.0',
     author='U2328 and iconstrife',
     package_dir={
-        'STB-Liga-export': 'src',
+        'STB_Liga_export': 'src',
         'misclib': 'src/lib',
     },
-    packages=['STB-Liga-export', 'misclib'],
-    entry_points={
-        'console_scripts': ['STB_Liga=src.main:main'],
-    },
+    packages=['STB_Liga_export', 'misclib'],
+
     install_requires=requirements,
 )
